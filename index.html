@@ -1,0 +1,540 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLOCK POP RPG</title>
+<style>
+:root {
+  --bg:#101426; --panel:#1b2340; --panel2:#252f50;
+  --text:#f5f7ff; --muted:#aab5d4; --accent:#7c83ff;
+  --cell:#303b60; --empty:#202944; --good:#50e3a4;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:radial-gradient(ellipse at top,#27315d 0%,var(--bg) 65%);
+  color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh;padding:16px;
+}
+button{font:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid white;outline-offset:2px}
+.app{max-width:1000px;margin:auto}
+header{text-align:center;margin:8px 0 18px}
+.logo{font-size:clamp(28px,6vw,48px);font-weight:1000;letter-spacing:2px;
+  background:linear-gradient(90deg,#7de7ff,#a79bff,#ff9ee8);
+  color:transparent;background-clip:text}
+.subtitle{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
+.stat,.panel{background:var(--panel);border:1px solid #364267;border-radius:16px;padding:12px}
+.stat-label{font-size:12px;color:var(--muted)}
+.stat-value{font-size:clamp(17px,3.5vw,25px);font-weight:900;margin-top:3px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;align-items:start}
+.panel{margin-bottom:12px}
+.panel h2{font-size:17px;margin:0 0 10px}
+.board-wrap{max-width:540px;margin:auto}
+.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;aspect-ratio:1}
+.cell{border:0;border-radius:6px;background:var(--empty);padding:0;min-width:0;aspect-ratio:1;
+  transition:background .1s,transform .1s}
+.cell.filled{background:var(--block-color,#7c83ff);box-shadow:inset 0 -3px #0002}
+.cell.preview{outline:2px solid white;filter:brightness(1.35)}
+.cell.clearing{animation:pop .2s}
+@keyframes pop{50%{transform:scale(.7);opacity:.4}}
+.message{min-height:25px;text-align:center;color:#c7d0f7;font-size:13px;margin:10px 0}
+.pieces{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.piece{min-height:105px;border:2px solid #3a466e;border-radius:12px;background:var(--panel2);
+  color:white;padding:8px;display:flex;align-items:center;justify-content:center}
+.piece.selected{border-color:#a9b1ff;background:#384574;box-shadow:0 0 0 2px #7c83ff44}
+.mini{display:grid;gap:3px}
+.mini-cell{width:clamp(12px,3.4vw,21px);aspect-ratio:1;border-radius:4px;background:var(--piece-color,#7c83ff)}
+.mini-cell.off{background:transparent}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{border:0;border-radius:10px;padding:10px 13px;font-weight:800;color:white;background:#414d78}
+.btn.primary{background:linear-gradient(135deg,#747dff,#9d66ef)}
+.btn.green{background:#167e65}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.small{font-size:12px;color:var(--muted);line-height:1.6}
+.progress{height:9px;background:#10172b;border-radius:99px;overflow:hidden;margin:8px 0}
+.progress>div{height:100%;width:0;background:linear-gradient(90deg,#6cdeff,#a28bff);transition:width .2s}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;
+  padding:10px 0;border-bottom:1px solid #34405f}
+.item:last-child{border-bottom:0}
+.item-name{font-weight:800;font-size:14px}
+.item-desc{font-size:12px;color:var(--muted);margin-top:3px}
+.item button{flex-shrink:0}
+.tag{font-size:11px;background:#38466c;padding:3px 7px;border-radius:99px}
+.skin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.skin-card{border:1px solid #3b476d;background:#222c49;border-radius:12px;padding:10px;text-align:center}
+.skin-card.active{border:2px solid var(--good)}
+.swatch{width:32px;height:32px;border-radius:9px;margin:0 auto 7px}
+.skin-card button{margin-top:7px;width:100%;padding:7px 4px}
+.notice{background:#162f36;border:1px solid #277765;border-radius:10px;padding:10px;font-size:12px}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);
+  background:#f4f6ff;color:#151a2d;padding:12px 18px;border-radius:12px;
+  font-weight:900;opacity:0;pointer-events:none;transition:.2s;z-index:5;text-align:center;
+  width:max-content;max-width:90vw;box-shadow:0 8px 35px #0005}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.modal-bg{position:fixed;inset:0;background:#080b17cc;display:none;align-items:center;
+  justify-content:center;padding:18px;z-index:10}
+.modal-bg.show{display:flex}
+.modal{max-width:420px;width:100%;background:var(--panel);border:1px solid #56618b;
+  border-radius:18px;padding:22px;text-align:center}
+.modal h2{margin-top:0}
+@media(max-width:720px){
+ body{padding:10px}.layout{grid-template-columns:1fr}
+ .stats{grid-template-columns:repeat(2,1fr)}
+ .side{display:grid;grid-template-columns:1fr;gap:0}
+ .stat,.panel{border-radius:13px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">BLOCK POP RPG</div>
+  <div class="subtitle">PLACE BLOCKS. CLEAR LINES. LEVEL UP!</div>
+</header>
+
+<section class="stats">
+  <div class="stat"><div class="stat-label">🏆 スコア</div><div class="stat-value" id="score">0</div></div>
+  <div class="stat"><div class="stat-label">🪙 コイン</div><div class="stat-value" id="coins">0</div></div>
+  <div class="stat"><div class="stat-label">⭐ レベル</div><div class="stat-value" id="level">1</div></div>
+  <div class="stat"><div class="stat-label">🔥 転生</div><div class="stat-value" id="prestige">0</div></div>
+</section>
+
+<div class="layout">
+  <main>
+    <section class="panel">
+      <h2>🧩 ブロックパズル</h2>
+      <div class="board-wrap"><div class="board" id="board"></div></div>
+      <div class="message" id="message">下のブロックを選んで、置きたい場所をクリック！</div>
+      <div class="pieces" id="pieces"></div>
+      <div class="actions">
+        <button class="btn primary" id="newGame">🔄 新しいゲーム</button>
+        <button class="btn" id="saveBtn">💾 セーブ</button>
+      </div>
+      <p class="small">ブロックを選択 → 盤面の左上にしたいマスをクリック。縦か横の1列を埋めると消えるよ！</p>
+    </section>
+
+    <section class="panel">
+      <h2>⭐ レベルアップ</h2>
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span id="xpLabel">EXP 0 / 100</span><span id="levelLabel">Lv.1</span>
+      </div>
+      <div class="progress"><div id="xpBar"></div></div>
+      <p class="small">ブロックを置いたり、列を消したりすると経験値が増えるよ。</p>
+    </section>
+
+    <section class="panel">
+      <h2>📅 デイリーミッション</h2>
+      <div id="daily"></div>
+    </section>
+  </main>
+
+  <aside class="side">
+    <section class="panel">
+      <h2>🛒 ショップ</h2>
+      <div id="shop"></div>
+    </section>
+
+    <section class="panel">
+      <h2>🎨 スキン</h2>
+      <div id="skins" class="skin-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>🏆 実績</h2>
+      <div id="achievements"></div>
+    </section>
+
+    <section class="panel">
+      <h2>🔥 転生</h2>
+      <p class="small">レベル10になると転生できるよ！転生するとレベル・スコア・盤面がリセットされる代わりに、転生ボーナスが増えるよ。</p>
+      <div id="prestigeInfo" class="notice"></div>
+      <button class="btn primary" id="prestigeBtn" style="width:100%;margin-top:10px">🔥 転生する</button>
+    </section>
+
+    <section class="panel">
+      <h2>💾 セーブデータ</h2>
+      <p class="small">このブラウザに自動保存されるよ。同じブラウザで遊んでね。ブラウザのデータを消すとセーブも消える場合があるよ。</p>
+      <button class="btn" id="resetSave" style="width:100%">セーブをリセット</button>
+    </section>
+  </aside>
+</div>
+<footer>BLOCK POP RPG · シングルプレイ · 公開用ビルド</footer>
+</div>
+
+<div id="toast"></div>
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">ゲーム終了！</h2>
+    <p id="modalText"></p>
+    <button class="btn primary" id="modalBtn">もう一度遊ぶ</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const SAVE_KEY = "blockPopRpgSave_v1";
+const SIZE = 8;
+const $ = id => document.getElementById(id);
+
+const SKINS = [
+  {id:"classic",name:"クラシック",color:"#7c83ff",price:0},
+  {id:"ocean",name:"オーシャン",color:"#38c9ed",price:100},
+  {id:"forest",name:"フォレスト",color:"#4cdb91",price:180},
+  {id:"sunset",name:"サンセット",color:"#ff965d",price:250},
+  {id:"candy",name:"キャンディ",color:"#ff79c6",price:350},
+  {id:"gold",name:"ゴールド",color:"#ffd45e",price:500}
+];
+
+const SHOP = [
+  {id:"coinSmall",name:"コインパック S",desc:"コインを100枚ゲット！",price:80,run:s=>s.coins+=100},
+  {id:"coinBig",name:"コインパック L",desc:"コインを300枚ゲット！",price:220,run:s=>s.coins+=300},
+  {id:"xpBoost",name:"経験値ブースト",desc:"次の5回、獲得EXPが2倍！",price:150,run:s=>s.xpBoost+=5},
+  {id:"scoreBoost",name:"スコアブースト",desc:"次の5回、スコアが2倍！",price:180,run:s=>s.scoreBoost+=5}
+];
+
+const ACHIEVEMENTS = [
+  {id:"first",name:"はじめの一歩",desc:"ブロックを1個置く",test:s=>s.blocksPlaced>=1,reward:25},
+  {id:"score1000",name:"スコア職人",desc:"スコア1000達成",test:s=>s.score>=1000,reward:50},
+  {id:"clear10",name:"ライン職人",desc:"合計10ライン消す",test:s=>s.linesCleared>=10,reward:75},
+  {id:"level5",name:"成長中！",desc:"レベル5に到達",test:s=>s.level>=5,reward:100},
+  {id:"coins500",name:"コイン長者",desc:"コインを500枚持つ",test:s=>s.coins>=500,reward:100},
+  {id:"place100",name:"ブロックマスター",desc:"ブロックを100個置く",test:s=>s.blocksPlaced>=100,reward:150},
+  {id:"prestige1",name:"新たな伝説",desc:"1回転生する",test:s=>s.prestige>=1,reward:200}
+];
+
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function makeDaily(){
+  return [
+    {id:"place",name:"ブロックを10個置く",target:10,progress:0,reward:40},
+    {id:"clear",name:"ラインを3本消す",target:3,progress:0,reward:60},
+    {id:"score",name:"スコアを500獲得",target:500,progress:0,reward:50}
+  ];
+}
+function blankBoard(){return Array.from({length:SIZE},()=>Array(SIZE).fill(0));}
+function defaultState(){
+  return {
+    score:0,coins:100,level:1,xp:0,prestige:0,
+    board:blankBoard(),pieces:[],selected:-1,
+    blocksPlaced:0,linesCleared:0,gamesPlayed:0,
+    skinsOwned:["classic"],skin:"classic",
+    achievements:[],dailyDate:todayKey(),daily:makeDaily(),
+    xpBoost:0,scoreBoost:0,gameOver:false
+  };
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw)return defaultState();
+    const data=JSON.parse(raw);
+    const base=defaultState();
+    const s={...base,...data};
+    if(!Array.isArray(s.board)||s.board.length!==SIZE)s.board=blankBoard();
+    if(!Array.isArray(s.pieces))s.pieces=[];
+    if(!Array.isArray(s.skinsOwned))s.skinsOwned=["classic"];
+    if(!Array.isArray(s.achievements))s.achievements=[];
+    if(!Array.isArray(s.daily))s.daily=makeDaily();
+    if(s.dailyDate!==todayKey()){s.dailyDate=todayKey();s.daily=makeDaily();}
+    s.selected=-1;
+    s.gameOver=false;
+    s.board=s.board.map(row=>Array.isArray(row)?row.slice(0,SIZE):Array(SIZE).fill(0));
+    while(s.board.length<SIZE)s.board.push(Array(SIZE).fill(0));
+    s.board=s.board.map(row=>{while(row.length<SIZE)row.push(0);return row;});
+    return s;
+  }catch(e){return defaultState();}
+}
+let state=loadState();
+let toastTimer=null;
+
+const SHAPES=[
+  [[0,0]],
+  [[0,0],[0,1]],
+  [[0,0],[1,0]],
+  [[0,0],[0,1],[0,2]],
+  [[0,0],[1,0],[2,0]],
+  [[0,0],[0,1],[1,0],[1,1]],
+  [[0,0],[0,1],[0,2],[1,1]],
+  [[0,0],[1,0],[2,0],[2,1]],
+  [[0,0],[1,0],[1,1],[1,2]],
+  [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
+  [[0,0],[1,0],[2,0],[3,0]],
+  [[0,0],[0,1],[0,2],[0,3]],
+  [[0,0],[0,1],[1,1],[1,2]],
+  [[0,0],[1,0],[2,0],[0,1]],
+  [[0,0],[0,1],[0,2],[0,3],[1,3]]
+];
+
+function randomPiece(){
+  const shape=SHAPES[Math.floor(Math.random()*SHAPES.length)];
+  return shape.map(p=>[p[0],p[1]]);
+}
+function newPieces(){state.pieces=[randomPiece(),randomPiece(),randomPiece()];state.selected=-1;}
+function color(){return (SKINS.find(x=>x.id===state.skin)||SKINS[0]).color;}
+function save(){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}
+  catch(e){showToast("セーブできなかったよ。ブラウザの容量を確認してね！");}
+}
+function showToast(text){
+  const el=$("toast");el.textContent=text;el.classList.add("show");
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),2100);
+}
+function number(n){return Math.floor(n).toLocaleString("ja-JP");}
+function xpNeeded(level){return 100+(level-1)*30;}
+function addXP(amount){
+  amount=Math.floor(amount*(state.xpBoost>0?2:1)*(1+state.prestige*.1));
+  if(state.xpBoost>0)state.xpBoost--;
+  state.xp+=amount;
+  while(state.xp>=xpNeeded(state.level)){
+    state.xp-=xpNeeded(state.level);state.level++;
+    state.coins+=25+state.level*5;
+    showToast("🎉 レベルアップ！ Lv."+state.level+"！");
+  }
+}
+function addScore(amount){
+  amount=Math.floor(amount*(state.scoreBoost>0?2:1)*(1+state.prestige*.1));
+  if(state.scoreBoost>0)state.scoreBoost--;
+  state.score+=amount;
+  addXP(Math.max(1,Math.floor(amount/5)));
+  state.coins+=Math.max(1,Math.floor(amount/20));
+}
+function updateDaily(id,amount){
+  const task=state.daily.find(t=>t.id===id);
+  if(task&&!task.claimed)task.progress=Math.min(task.target,task.progress+amount);
+}
+function checkAchievements(){
+  for(const a of ACHIEVEMENTS){
+    if(!state.achievements.includes(a.id)&&a.test(state)){
+      state.achievements.push(a.id);state.coins+=a.reward;
+      showToast("🏆 実績解除："+a.name+"（+"+a.reward+"コイン）");
+    }
+  }
+}
+function renderStats(){
+  $("score").textContent=number(state.score);
+  $("coins").textContent=number(state.coins);
+  $("level").textContent=state.level;
+  $("prestige").textContent=state.prestige;
+  const need=xpNeeded(state.level);
+  $("xpLabel").textContent="EXP "+number(state.xp)+" / "+number(need);
+  $("levelLabel").textContent="Lv."+state.level;
+  $("xpBar").style.width=Math.min(100,state.xp/need*100)+"%";
+  $("prestigeInfo").textContent=state.level>=10
+    ?"転生できるよ！転生後は獲得スコアとEXPにボーナス！"
+    :"転生まであとレベル"+Math.max(0,10-state.level)+"！";
+  $("prestigeBtn").disabled=state.level<10;
+}
+function renderBoard(){
+  const el=$("board");el.innerHTML="";
+  const selected=state.selected>=0?state.pieces[state.selected]:null;
+  for(let r=0;r<SIZE;r++){
+    for(let c=0;c<SIZE;c++){
+      const cell=document.createElement("button");
+      cell.className="cell"+(state.board[r][c]?" filled":"");
+      cell.setAttribute("aria-label",`${r+1}行${c+1}列`);
+      if(state.board[r][c])cell.style.setProperty("--block-color",color());
+      if(selected&&canPlace(selected,r,c))cell.classList.add("preview");
+      cell.addEventListener("click",()=>placeSelected(r,c));
+      el.appendChild(cell);
+    }
+  }
+}
+function renderPieces(){
+  const el=$("pieces");el.innerHTML="";
+  state.pieces.forEach((shape,i)=>{
+    const b=document.createElement("button");
+    b.className="piece"+(state.selected===i?" selected":"");
+    b.disabled=!shape||state.gameOver;
+    b.setAttribute("aria-label","ブロック"+(i+1)+"を選ぶ");
+    if(!shape){b.textContent="使用済み";el.appendChild(b);return;}
+    b.addEventListener("click",()=>{
+      state.selected=state.selected===i?-1:i;
+      renderBoard();renderPieces();
+      $("message").textContent=state.selected<0
+        ?"ブロックを選んでね！":"盤面の置きたい場所をクリック！";
+    });
+    const maxR=Math.max(...shape.map(p=>p[0]))+1;
+    const maxC=Math.max(...shape.map(p=>p[1]))+1;
+    const mini=document.createElement("div");mini.className="mini";
+    mini.style.gridTemplateColumns=`repeat(${maxC},auto)`;
+    const occupied=new Set(shape.map(p=>p[0]+","+p[1]));
+    for(let r=0;r<maxR;r++)for(let c=0;c<maxC;c++){
+      const x=document.createElement("div");
+      x.className="mini-cell"+(occupied.has(r+","+c)?"":" off");
+      x.style.setProperty("--piece-color",color());mini.appendChild(x);
+    }
+    b.appendChild(mini);el.appendChild(b);
+  });
+}
+function canPlace(shape,row,col){
+  if(!shape)return false;
+  return shape.every(([dr,dc])=>{
+    const r=row+dr,c=col+dc;
+    return r>=0&&r<SIZE&&c>=0&&c<SIZE&&!state.board[r][c];
+  });
+}
+function anyMoves(){
+  for(const shape of state.pieces){
+    if(!shape)continue;
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)if(canPlace(shape,r,c))return true;
+  }
+  return false;
+}
+function placeSelected(row,col){
+  if(state.gameOver)return;
+  if(state.selected<0||!state.pieces[state.selected]){
+    $("message").textContent="先に下のブロックを選んでね！";return;
+  }
+  const shape=state.pieces[state.selected];
+  if(!canPlace(shape,row,col)){
+    $("message").textContent="そこには置けないよ！別の場所を試してね。";return;
+  }
+  for(const [dr,dc] of shape)state.board[row+dr][col+dc]=1;
+  const placed=shape.length;
+  state.blocksPlaced+=placed;
+  addScore(placed*2);
+  updateDaily("place",placed);
+  updateDaily("score",placed*2);
+  state.pieces[state.selected]=null;state.selected=-1;
+
+  const fullRows=[];
+  const fullCols=[];
+  for(let r=0;r<SIZE;r++)if(state.board[r].every(v=>v))fullRows.push(r);
+  for(let c=0;c<SIZE;c++)if(state.board.every(row=>row[c]))fullCols.push(c);
+  const clearCount=fullRows.length+fullCols.length;
+  if(clearCount){
+    const cleared=new Set();
+    fullRows.forEach(r=>{for(let c=0;c<SIZE;c++)cleared.add(r+","+c);});
+    fullCols.forEach(c=>{for(let r=0;r<SIZE;r++)cleared.add(r+","+c);});
+    for(const key of cleared){
+      const [r,c]=key.split(",").map(Number);state.board[r][c]=0;
+    }
+    state.linesCleared+=clearCount;
+    const points=clearCount*100+(clearCount>1?(clearCount-1)*50:0);
+    addScore(points);updateDaily("clear",clearCount);updateDaily("score",points);
+    showToast("💥 "+clearCount+"ライン消去！ +"+points+"スコア");
+  }
+  state.coins+=Math.floor(placed/2);
+  $("message").textContent=clearCount?"ライン消去成功！次のブロックを選ぼう！":"いいね！次のブロックを選ぼう！";
+  if(state.pieces.every(p=>!p))newPieces();
+  checkAchievements();renderAll();save();
+  if(!anyMoves())endGame();
+}
+function endGame(){
+  state.gameOver=true;state.gamesPlayed++;save();renderPieces();
+  $("modalTitle").textContent="🎮 ゲーム終了！";
+  $("modalText").textContent="今回のスコア："+number(state.score)+"。新しいゲームでまた挑戦しよう！";
+  $("modalBtn").textContent="もう一度遊ぶ";
+  $("modalBg").classList.add("show");
+}
+function renderShop(){
+  const el=$("shop");el.innerHTML="";
+  for(const item of SHOP){
+    const row=document.createElement("div");row.className="item";
+    const info=document.createElement("div");
+    info.innerHTML=`<div class="item-name">${item.name}</div><div class="item-desc">${item.desc}</div><div class="item-desc">🪙 ${item.price}</div>`;
+    const btn=document.createElement("button");btn.className="btn primary";btn.textContent="購入";
+    btn.disabled=state.coins<item.price;
+    btn.addEventListener("click",()=>{
+      if(state.coins<item.price)return;
+      state.coins-=item.price;item.run(state);
+      showToast("購入したよ！");renderAll();save();
+    });
+    row.append(info,btn);el.appendChild(row);
+  }
+}
+function renderSkins(){
+  const el=$("skins");el.innerHTML="";
+  for(const skin of SKINS){
+    const owned=state.skinsOwned.includes(skin.id);
+    const card=document.createElement("div");card.className="skin-card"+(state.skin===skin.id?" active":"");
+    const swatch=document.createElement("div");swatch.className="swatch";swatch.style.background=skin.color;
+    const name=document.createElement("div");name.className="item-name";name.textContent=skin.name;
+    const price=document.createElement("div");price.className="item-desc";price.textContent=skin.price===0?"無料":"🪙 "+skin.price;
+    const btn=document.createElement("button");btn.className="btn";
+    btn.textContent=state.skin===skin.id?"使用中":owned?"使う":"購入";
+    btn.disabled=state.skin===skin.id||(!owned&&state.coins<skin.price);
+    btn.addEventListener("click",()=>{
+      if(!owned){if(state.coins<skin.price)return;state.coins-=skin.price;state.skinsOwned.push(skin.id);}
+      state.skin=skin.id;showToast(skin.name+"スキンに変更！");
+      renderAll();save();
+    });
+    card.append(swatch,name,price,btn);el.appendChild(card);
+  }
+}
+function renderAchievements(){
+  const el=$("achievements");el.innerHTML="";
+  for(const a of ACHIEVEMENTS){
+    const done=state.achievements.includes(a.id);
+    const row=document.createElement("div");row.className="item";
+    const info=document.createElement("div");
+    info.innerHTML=`<div class="item-name">${done?"✅":"🔒"} ${a.name}</div><div class="item-desc">${a.desc}</div><div class="item-desc">報酬：${a.reward}コイン</div>`;
+    const tag=document.createElement("span");tag.className="tag";tag.textContent=done?"達成":"未達成";
+    row.append(info,tag);el.appendChild(row);
+  }
+}
+function renderDaily(){
+  const el=$("daily");el.innerHTML="";
+  for(const task of state.daily){
+    const done=task.progress>=task.target;
+    const claimed=!!task.claimed;
+    const row=document.createElement("div");row.className="item";
+    const info=document.createElement("div");info.style.flex="1";
+    info.innerHTML=`<div class="item-name">${task.name}</div><div class="item-desc">${Math.min(task.progress,task.target)} / ${task.target}</div><div class="progress"><div style="width:${Math.min(100,task.progress/task.target*100)}%"></div></div>`;
+    const btn=document.createElement("button");btn.className="btn "+(done&&!claimed?"green":"");
+    btn.textContent=claimed?"受取済":done?"受け取る":"進行中";
+    btn.disabled=!done||claimed;
+    btn.addEventListener("click",()=>{
+      if(!done||task.claimed)return;
+      task.claimed=true;state.coins+=task.reward;
+      showToast("🎁 "+task.reward+"コイン獲得！");
+      checkAchievements();renderAll();save();
+    });
+    row.append(info,btn);el.appendChild(row);
+  }
+}
+function renderAll(){
+  renderStats();renderBoard();renderPieces();renderShop();renderSkins();
+  renderAchievements();renderDaily();
+}
+function startNewGame(){
+  state.board=blankBoard();newPieces();state.gameOver=false;
+  $("modalBg").classList.remove("show");
+  $("message").textContent="新しいゲーム開始！ブロックを置いてみよう！";
+  renderAll();save();
+}
+function doPrestige(){
+  if(state.level<10)return;
+  const ok=confirm("転生する？レベル・スコア・盤面がリセットされるよ。コイン、スキン、実績は残るよ！");
+  if(!ok)return;
+  state.prestige++;state.level=1;state.xp=0;state.score=0;
+  state.board=blankBoard();newPieces();state.gameOver=false;
+  showToast("🔥 転生成功！ボーナスが増えたよ！");
+  renderAll();save();
+}
+$("newGame").addEventListener("click",startNewGame);
+$("saveBtn").addEventListener("click",()=>{save();showToast("💾 セーブしたよ！");});
+$("prestigeBtn").addEventListener("click",doPrestige);
+$("modalBtn").addEventListener("click",startNewGame);
+$("resetSave").addEventListener("click",()=>{
+  const ok=confirm("本当にセーブを全部消す？この操作は元に戻せないよ！");
+  if(!ok)return;
+  localStorage.removeItem(SAVE_KEY);state=defaultState();newPieces();
+  renderAll();save();showToast("セーブをリセットしたよ！");
+});
+window.addEventListener("beforeunload",save);
+
+if(state.dailyDate!==todayKey()){state.dailyDate=todayKey();state.daily=makeDaily();}
+if(!state.pieces.length)newPieces();
+renderAll();
+checkAchievements();
+save();
+</script>
+</body>
+</html>
